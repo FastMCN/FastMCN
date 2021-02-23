@@ -37,95 +37,6 @@ def dump_config(obj_name: str, path: str, dt: str):
         f.write("\n")
 
 
-class TrainRecGetdFt():
-    def __init__(self, model, char_code, device):
-        self.char_code = char_code
-        self.model = model
-        self.n_chars = (self.char_code > 0).sum(-1)
-        self.word_idx = torch.tensor(list(range(self.char_code.shape[0])),
-                                     device=device)
-
-    def __call__(self, word_lens, gt_word_len, word_ft, word_idx):
-        intake = (self.n_chars <= word_lens[0]) * gt_word_len
-        new_gt_word_len = self.n_chars > word_lens[0]
-        char_code_intake = self.char_code[intake]
-        char_code_intake = char_code_intake[:, char_code_intake.sum(0) > 0]
-        word_idx += [self.word_idx[intake]]
-        # word_ft += [self.model(
-        #     char_code_intake, self.model.compute_qkv(char_code_intake.shape[-1]))]
-        word_ft += [self.model(char_code_intake, char_code_intake.shape[-1])]
-        if len(word_lens) > 1:
-            return self.__call__(word_lens[1:], new_gt_word_len, word_ft, word_idx)
-        _, word_idx_order = torch.cat(word_idx).sort()
-        word_ft = torch.cat(word_ft).index_select(0, word_idx_order)
-        return word_ft
-
-
-class GetTrainFt():
-    """This use word index for get train_ft faster. And do not use this for test_data when evaluating warm_start_time."""
-    def __init__(self, model, word_map, batch_size, device):
-        self.model = model
-        self.word_map = word_map
-        self.batch_size = batch_size
-        self.device = device
-        self.vocab_map, self.vocab_char_codes = self.organize_word_map()
-        self.vocab_char_codes = torch.tensor(
-            self.vocab_char_codes, device=self.device)
-        self.vocab_size = self.vocab_char_codes.shape[0]
-        # print("computing vocab_ft")
-        with torch.no_grad():
-            self.vocab_ft = self.get_word_ft(self.vocab_char_codes)
-        # print("vocab_ft computed")
-
-    def organize_word_map_helper(self, collecitons, dt):
-        word_map, char_codes = collecitons
-        idx, (key, char_code) = dt
-        word_map[key] = idx
-        char_codes += [char_code]
-        return (word_map, char_codes)
-
-    def organize_word_map(self):
-        tmp_word_map = [(len(k), k, v) for k, v in self.word_map.items()]
-        tmp_word_map = sorted(tmp_word_map)
-        tmp_word_map = {i[1]: i[2] for i in tmp_word_map}
-        word_map, char_codes = reduce(
-            self.organize_word_map_helper,
-            zip(count(0), tmp_word_map.items()),
-            ({}, []))
-        return word_map, char_codes
-
-    def get_word_ft_helper(self, char_codes):
-        char_codes = char_codes[:, char_codes.sum(0) > 0]
-        word_ft = self.model(char_codes, char_codes.shape[-1])
-        return word_ft
-
-    def get_word_ft(self, char_codes):
-        char_code_size = char_codes.shape[0]
-        lower = list(range(0, char_code_size, self.batch_size))[:-1]
-        upper = lower[1:] + [char_code_size]
-        word_ft = torch.cat([self.get_word_ft_helper(char_codes[l:u])
-                             for l, u in zip(lower, upper)])
-        return word_ft
-
-    def get_name_ft_helper(self, collecitons, dt):
-        word_code, n_words, names, label = collecitons
-        word_code += [self.vocab_map[w] for w in dt['word']]
-        n_words += [dt['n_word']]
-        names += [dt['name']]
-        label += [dt['concept'].lower()]
-        return (word_code, n_words, names, label)
-
-    def __call__(self, data_set):
-        word_code, n_words, names, label = reduce(
-            self.get_name_ft_helper,
-            chain(*data_set.values()),
-            ([], [], [], []))
-        word_code = torch.tensor(word_code, device=self.device)
-        word_ft = self.vocab_ft.index_select(0, word_code).split(n_words)
-        name_ft = normalize(torch.stack([ft.mean(0) for ft in word_ft]))
-        return name_ft, names, label
-
-
 class GetFt():
     def __init__(self, model, word_map, batch_size, device):
         self.model = model
@@ -207,7 +118,7 @@ concept_id = {n.lower(): idx for n, idx in zip(train_data, count(0))}
 dev_label = list(chain(*[[i['concept'].lower() for i in v] for v in dev_data.values()]))
 test_label = list(chain(*[[i['concept'].lower() for i in v] for v in test_data.values()]))
 
-model_config['args']['n_src_vocab'] = len(char_map) + 1
+model_config['args']['vocab_size'] = len(char_map) + 1
 
 path_work_dir = Path(work_dir)
 
