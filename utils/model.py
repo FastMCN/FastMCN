@@ -44,10 +44,10 @@ bias: Bool. bias argument for linear layer."""
         return self.act_func(self.linear(inputs))
 
 class TE(nn.Module):
-    def __init__(self, n_src_vocab, max_chars, embedding_dim, n_head,
+    def __init__(self, vocab_size, max_chars, embedding_dim, n_head,
                  dropout, pad_idx=0, device="cuda"):
         super().__init__()
-        self.n_src_vocab = n_src_vocab
+        self.vocab_size = vocab_size
         self.max_chars = max_chars,
         self.n_head = n_head
         self.embedding_dim = embedding_dim
@@ -55,7 +55,7 @@ class TE(nn.Module):
         self.pad_idx = pad_idx
         self.device = device
         self.pos_emb = self.gen_pos_embedding(max_chars, self.embedding_dim).to(device)
-        self.char_emb = nn.Embedding(num_embeddings=self.n_src_vocab,
+        self.char_emb = nn.Embedding(num_embeddings=self.vocab_size,
                                      embedding_dim=self.embedding_dim,
                                      padding_idx=self.pad_idx)
         self.qkv_linear = nn.Linear(in_features=self.embedding_dim,
@@ -136,11 +136,11 @@ class TE(nn.Module):
 model_set['TE'] = TE
 
 class IE(nn.Module):
-    def __init__(self, n_src_vocab, max_chars, n_head, word_vec_d,
+    def __init__(self, vocab_size, max_chars, n_head, word_vec_d,
                  dropout, mlp_config, pad_idx=0, device="cuda"):
         super().__init__()
         # attributes
-        self.n_src_vocab = n_src_vocab
+        self.vocab_size = vocab_size
         self.max_chars = max_chars
         self.n_head = n_head
         self.word_vec_d = word_vec_d
@@ -149,7 +149,7 @@ class IE(nn.Module):
         self.device = device
         self.pad_idx = pad_idx
         self.mha_dim = n_head
-        self.char_emb = nn.Embedding(n_src_vocab, word_vec_d, padding_idx=pad_idx).to(device)
+        self.char_emb = nn.Embedding(vocab_size, word_vec_d, padding_idx=pad_idx).to(device)
         self.char = self.char_emb.weight
         self.pos = self.get_pos(self.max_chars).to(device)
         self.char_qkv_layer = ComputeQKV(self.n_head, self.word_vec_d)
@@ -181,11 +181,11 @@ class IE(nn.Module):
         char_qkv, pos_qkv = qkv
         char_q, char_k, char_v = [char_qkv[:, i] for i in range(char_qkv.shape[1])]
         pos_q, pos_k, pos_v = [pos_qkv[:, i] for i in range(pos_qkv.shape[1])]
-        # (n_src_vocab, n_head, word_vec_d) -> (n_head, n_src_vocab, word_vec_d)
+        # (vocab_size, n_head, word_vec_d) -> (n_head, vocab_size, word_vec_d)
         char_q = char_q.transpose(0, 1)
-        # (n_src_vocab, n_head, word_vec_d) -> (n_head, word_vec_d, n_src_vocab)
+        # (vocab_size, n_head, word_vec_d) -> (n_head, word_vec_d, vocab_size)
         char_k = char_k.permute(1, -1, 0)
-        # 1, n_head, n_src_vocab, n_src_vocab
+        # 1, n_head, vocab_size, vocab_size
         char_qk = (char_q @ char_k).unsqueeze(0)
         char_qk[:, :, :, self.pad_idx] = -1e9
         # (max_chars, n_head, word_vec_d) -> (n_head, max_chars, word_vec_d)
@@ -194,9 +194,9 @@ class IE(nn.Module):
         pos_k = pos_k.permute(1, -1, 0)
         # (max_chars, n_head, word_vec_d) -> (1, n_head, max_chars, word_vec_d)
         pos_qk = (pos_q @ pos_k).unsqueeze(0)
-        # n_head, n_src_vocab, max_chars
+        # n_head, vocab_size, max_chars
         char_pos_qk = (char_q @ pos_k)
-        # n_head, max_chars, n_src_vocab
+        # n_head, max_chars, vocab_size
         pos_char_qk = (pos_q @ char_k)
         # max_chars, n_head, word_vec_d -> 1, n_head, max_chars, word_vec_d
         pos_v = pos_v.transpose(0, 1).unsqueeze(0)
@@ -204,15 +204,15 @@ class IE(nn.Module):
 
     def scaled_dot_product_attention(self, inputs, not_mask, qkv, max_len):
         char_qk, pos_qk, char_pos_qk, pos_char_qk, char_v, pos_v = qkv
-        # (1, n_head, n_src_vocab, n_src_vocab) -> (n_words, n_head, max_len, max_len)
+        # (1, n_head, vocab_size, vocab_size) -> (n_words, n_head, max_len, max_len)
         inputs_char_qk = torch.cat(
             [char_qk.index_select(-2, i).index_select(-1, i)
              for i in inputs])
-        # (n_head, n_src_vocab, max_chars) -> (n_words, n_head, max_len, max_len)
+        # (n_head, vocab_size, max_chars) -> (n_words, n_head, max_len, max_len)
         inputs_char_pos_qk = char_pos_qk[:, :, :max_len].index_select(
             -2, inputs.reshape(-1)).reshape(
                 [self.n_head, *inputs.shape, max_len]).transpose(0, 1)
-        # (n_head, max_chars, n_src_vocab) -> (n_head, max_len, n_words, max_len) -> (n_words, n_head, max_len, max_len)
+        # (n_head, max_chars, vocab_size) -> (n_head, max_len, n_words, max_len) -> (n_words, n_head, max_len, max_len)
         inputs_pos_char_qk = pos_char_qk[:, :max_len].index_select(
             -1, inputs.reshape(-1)).reshape(
                 [self.n_head, max_len, *inputs.shape]).permute(-2, 0, 1, -1)
@@ -252,9 +252,9 @@ class IE(nn.Module):
 model_set['IE'] = IE
 
 class IECE(IE):
-      def __init__(self, n_classes, n_src_vocab, max_chars, n_head, word_vec_d,
+      def __init__(self, n_classes, vocab_size, max_chars, n_head, word_vec_d,
                    dropout, mlp_config, pad_idx=0, device="cuda"):
-          super().__init__(n_src_vocab, max_chars, n_head, word_vec_d,
+          super().__init__(vocab_size, max_chars, n_head, word_vec_d,
                            dropout, mlp_config, pad_idx=0, device="cuda")
           self.n_classes = n_classes
           self.output_layer = nn.Linear(self.word_vec_d * self.mlp_config[-1][0],
