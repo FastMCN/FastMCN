@@ -379,21 +379,6 @@ for _ in range(N_ROUNDS):
         torch.save(model, f"{work_dir}/{optim_config['name']}_model_checkpoint.pkl")
         torch.save(optimizer, f"{work_dir}/{optim_config['name']}_checkpoint.pkl")
 
-# vocab_ft = eval_get_ft.vocab_ft
-# vocab_ft = vocab_ft.cpu()
-# eval_get_ft.vocab_ft = eval_get_ft.vocab_ft.cpu()
-# train_ft = train_ft.cpu()
-# cache_cos_sim = (vocab_ft @ train_ft)
-# test_code = test_code.cpu()
-# test_n_words = test_n_words.cpu()
-
-# def test_index_cos():
-#     s = time()
-#     test_pred = (test_n_words @ cache_cos_sim.index_select(0, test_code)).argmax(-1)
-#     return time() - s
-
-# t = [test_index_cos() for i in range(10)]
-# np.mean(t)
 
 train_ft = eval_get_ft.get_ft_fast(train_code, train_n_words)
 train_ft = train_ft.transpose(0, 1)
@@ -402,8 +387,3 @@ warn_start_time = [test_warn_start(test_code, test_n_words) for i in range(100)]
 warn_start_time_mean = np.mean(warn_start_time)
 print(f"Average time of warn_start: {warn_start_time_mean:.3f}")
 print(f"Average time of one query: {(warn_start_time_mean * 1000 / test_ft.shape[0]):.3f} us")
-
-# Local Variables:
-# elpy-shell-starting-directory: current-directory
-# pyvenv-activate: "/home/chongliang/miniconda3/envs/small_dict_transformer/"
-# End:
