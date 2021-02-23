@@ -56,7 +56,7 @@ optim_config = {
     }}
 
 model_config = {
-    "name": "CharTransformerV2",
+    "name": "TE",
     "args": {
         "n_head": 32,
         "embedding_dim": WORD_VEC_D,

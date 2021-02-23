@@ -58,7 +58,7 @@ optim_config = {
 activate_func = "Tanh"
 
 model_config = {
-    "name": "SVTransformerBPETokenV8",
+    "name": "IE",
     "args": {
         "n_head": 32,
         "word_vec_d": WORD_VEC_D,
