@@ -21,5 +21,5 @@ echo -e "\n=====================================================================
 echo "Prepare data"
 echo "==============================================================================="
 cd ..
-python ./utils/prepare_data_use_tokenizer.py ./proc_data/ncbi_ctd_data.csv ./proc_data/ncbi_data.csv ./proc_data/ncbi_ctd 32768
-python ./utils/prepare_data_use_tokenizer.py ./proc_data/cdr_ctd_data.csv ./proc_data/cdr_data.csv ./proc_data/cdr_ctd 32768
+python ./utils/prepare_data.py ./proc_data/ncbi_ctd_data.csv ./proc_data/ncbi_data.csv ./proc_data/ncbi_ctd 32768
+python ./utils/prepare_data.py ./proc_data/cdr_ctd_data.csv ./proc_data/cdr_data.csv ./proc_data/cdr_ctd 32768
