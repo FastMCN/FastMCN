@@ -3,7 +3,7 @@
 import torch
 from numpy import pi
 
-SEED = 1                        # 1, 2, 3
+SEED = 1
 
 # new, continue
 INIT_STEP = 0
@@ -75,7 +75,7 @@ VAR_NAMES = ["train_data", "dev_data", "test_data", "char_map",
 
 mlp_dims = [c[0] for c in model_config['args']['mlp_config']]
 # work_dir = f"./train/{DATA}/{model_config['name']}/bs{BATCH_SIZE}_vec{WORD_VEC_D}_head{model_config['args']['n_head']}_{str(mlp_dims)}/"
-work_dir = f"./train/{DATA}/{model_config['name']}/bs{BATCH_SIZE}_vec{WORD_VEC_D}_{str(mlp_dims)}_{activate_func}_trial{SEED}_svt_2/"
+work_dir = f"./train/{DATA}/{model_config['name']}/bs{BATCH_SIZE}_vec{WORD_VEC_D}_{str(mlp_dims)}_{activate_func}_trial{SEED}/"
 # work_dir = "/tmp/ncbi/"
 
 

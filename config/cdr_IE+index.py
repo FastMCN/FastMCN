@@ -1,9 +1,6 @@
-# train with train_use_bpe_token_v2.py
-
 import torch
 from numpy import pi
 
-# new, continue
 INIT_STEP = 0
 SEED = 1                        # 1, 2, 3
 
@@ -21,6 +18,7 @@ EVAL_BATCH_SIZE = 512
 
 BATCH_SIZE = 128
 WORD_VEC_D = 512
+# Total steps = N_ROUNDS * STEP_PRE_ROUND
 N_ROUNDS = 250
 STEP_PRE_ROUND = 100
 MAX_SIZE_FOR_EACH_CONCEPT = 2
@@ -28,17 +26,8 @@ DATA_PATH = f"./proc_data/{DATA}/"
 EVAL = True
 GPU_NUM = ["1"]
 
-# # BATCH_SIZE: 1024, 240s
-# WORD_LENS = [4, 8, 12, 16, MAX_CHARS]
-
 # BATCH_SIZE: 32, 64, 128, 130
 WORD_LENS = [4, 8, MAX_CHARS]
-
-# # BATCH_SIZE: 16
-# WORD_LENS = [8, MAX_CHARS]
-
-# # BATCH_SIZE: 4
-# WORD_LENS = [MAX_CHARS]
 
 DEVICE = "cuda"
 
@@ -75,17 +64,13 @@ model_config = {
         "dropout": 0.1,
         "mlp_config": [[16, activate_func, False],
                        [1, activate_func, False]]
-        # "mlp_config": [[16, "Tanh", True],
-        #                [1, "Tanh", True]]
-        }}
+    }}
 
 VAR_NAMES = ["train_data", "dev_data", "test_data", "char_map",
              "word_map", "global_var", "bpe_vocab", "bpe_vocab_idx"]
 
 mlp_dims = [c[0] for c in model_config['args']['mlp_config']]
-work_dir = f"./train/{DATA}/{model_config['name']}/bs{BATCH_SIZE}_vec{WORD_VEC_D}_{str(mlp_dims)}_{activate_func}_trial{SEED}_svt/"
-# work_dir = f"/tmp/cdr_tmp_{SEED}/"
-
+work_dir = f"./train/{DATA}/{model_config['name']}/bs{BATCH_SIZE}_vec{WORD_VEC_D}_{str(mlp_dims)}_{activate_func}_trial{SEED}/"
 continue_config = {
     "model": f"{work_dir}{optim_config['name']}_model_{INIT_STEP}.pkl",
     "optimizer": f"{work_dir}{optim_config['name']}_{INIT_STEP}.pkl"
