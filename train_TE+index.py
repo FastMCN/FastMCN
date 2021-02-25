@@ -347,7 +347,7 @@ for _ in range(N_ROUNDS):
         dev_acc = np.mean([l == train_label[p]
                            for l, p in zip(dev_label, dev_pred)])
         print(f"dev acc: {dev_acc:.4f} test acc: {test_acc:.4f} cold_start: {cold_start_time:.4f} warm_start: {warm_start_time:.4f}")
-        with open(f"{work_dir}/eval_log.txt", "a") as f:
+        with open(f"{work_dir}/eval.log", "a") as f:
             f.write(f"{step},{current_time},test_acc,{test_acc}\n")
             f.write(f"{step},{current_time},dev_acc,{dev_acc}\n")
             f.write(f"{step},{current_time},cold_start_time,{cold_start_time}\n")

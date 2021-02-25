@@ -85,7 +85,8 @@ class YieldData():
         return self.yield_data.__next__()
 
 
-config_name = sys.argv[1] if len(sys.argv) > 1 else "cdr_char_transformer_no_word_index_512"
+config_name = sys.argv[1] if len(
+    sys.argv) > 1 else "cdr_char_transformer_no_word_index_512"
 
 config_vars = import_module(f"config.{config_name}")
 config_var_names = [i for i in config_vars.__dir__() if not i.startswith("__")]
@@ -115,8 +116,10 @@ for name in VAR_NAMES:
 
 concept_id = {n.lower(): idx for n, idx in zip(train_data, count(0))}
 
-dev_label = list(chain(*[[i['concept'].lower() for i in v] for v in dev_data.values()]))
-test_label = list(chain(*[[i['concept'].lower() for i in v] for v in test_data.values()]))
+dev_label = list(chain(*[[i['concept'].lower() for i in v]
+                         for v in dev_data.values()]))
+test_label = list(chain(*[[i['concept'].lower()
+                           for i in v] for v in test_data.values()]))
 
 model_config['args']['vocab_size'] = len(char_map) + 1
 
@@ -155,7 +158,8 @@ model_cls = model_set[model_config['name']]
 if state == "new":
     model = model_cls(**model_config['args'])
     if WEIGHT_INIT:
-        weight_names = [i for i in model.state_dict().keys() if "weight" in i and "embedding" not in i]
+        weight_names = [i for i in model.state_dict(
+        ).keys() if "weight" in i and "embedding" not in i]
         for n in weight_names:
             w = reduce(getattr, n.split("."), model)
             if len(w.shape) > 1:
@@ -187,7 +191,8 @@ for config in configs:
     dump_config_by_name(config)
 
 train_loader = DataLoader(
-    DataTokenized(train_data, BATCH_SIZE, MAX_SIZE_FOR_EACH_CONCEPT, recode=False),
+    DataTokenized(train_data, BATCH_SIZE,
+                  MAX_SIZE_FOR_EACH_CONCEPT, recode=False),
     num_workers=2,
     pin_memory=True)
 yield_train_data = YieldData(train_loader)
@@ -209,7 +214,8 @@ for _ in range(N_ROUNDS):
     t = trange(STEP_PRE_ROUND, leave=False, ncols=120, ascii=True)
     # for _ in range(STEP_PRE_ROUND):
     for _ in t:
-        char_code, word_code, n_words, n_names = [i.squeeze(0) for i in yield_train_data()]
+        char_code, word_code, n_words, n_names = [
+            i.squeeze(0) for i in yield_train_data()]
         char_code, word_code = [i.to(DEVICE) for i in [char_code, word_code]]
         n_words, n_names = [i.tolist() for i in [n_words, n_names]]
         char_code = char_code[:, char_code.sum(0) > 0]
@@ -258,21 +264,24 @@ for _ in range(N_ROUNDS):
         test_ft, test_names, test_label = eval_get_ft(test_data)
         test_pred = list((test_ft @ train_ft).argmax(-1).to("cpu").numpy())
         eval_end = time()
-        cold_start_time, warm_start_time = [eval_end - t for t in [cold_start, warm_start]]
+        cold_start_time, warm_start_time = [
+            eval_end - t for t in [cold_start, warm_start]]
         test_acc = np.mean([l == train_label[p]
                             for l, p in zip(test_label, test_pred)])
         dev_ft, dev_names, dev_label = eval_get_ft(dev_data)
         dev_pred = list((dev_ft @ train_ft).argmax(-1).to("cpu").numpy())
         dev_acc = np.mean([l == train_label[p]
                            for l, p in zip(dev_label, dev_pred)])
-        print(f"dev acc: {dev_acc:.4f} test acc: {test_acc:.4f} cold_start: {cold_start_time:.4f} warm_start: {warm_start_time:.4f}")
-        with open(f"{work_dir}/eval_log.txt", "a") as f:
+        print(
+            f"dev acc: {dev_acc:.4f} test acc: {test_acc:.4f} cold_start: {cold_start_time:.4f} warm_start: {warm_start_time:.4f}")
+        with open(f"{work_dir}/eval.log", "a") as f:
             f.write(f"{step},{current_time},test_acc,{test_acc}\n")
             f.write(f"{step},{current_time},dev_acc,{dev_acc}\n")
             f.write(f"{step},{current_time},cold_start_time,{cold_start_time}\n")
             f.write(f"{step},{current_time},warm_start_time,{warm_start_time}\n")
         if test_acc > best_test_acc:
-            torch.save(model, f"{work_dir}/{optim_config['name']}_best_model.pkl")
+            torch.save(
+                model, f"{work_dir}/{optim_config['name']}_best_model.pkl")
             best_test_acc = test_acc
             content = "\n".join(["\t".join([n, l, train_label[p]])
                                  for p, n, l in zip(test_pred, test_names, test_label)])
@@ -288,8 +297,10 @@ for _ in range(N_ROUNDS):
         torch.cuda.empty_cache()
         model.train()
     if SAVE_PRE_STEP and step % SAVE_PRE_STEP == 0:
-        torch.save(model, f"{work_dir}/{optim_config['name']}_model_checkpoint.pkl")
-        torch.save(optimizer, f"{work_dir}/{optim_config['name']}_checkpoint.pkl")
+        torch.save(
+            model, f"{work_dir}/{optim_config['name']}_model_checkpoint.pkl")
+        torch.save(
+            optimizer, f"{work_dir}/{optim_config['name']}_checkpoint.pkl")
 
 
 # Local Variables:

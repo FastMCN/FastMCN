@@ -60,7 +60,8 @@ class TrainRecGetdFt():
         word_idx += [self.word_idx[intake]]
         # word_ft += [self.model(
         #     char_code_intake, self.model.compute_qkv(char_code_intake.shape[-1]))]
-        word_ft += [self.model(char_code_intake, self.qkv, char_code_intake.shape[-1])]
+        word_ft += [self.model(char_code_intake, self.qkv,
+                               char_code_intake.shape[-1])]
         if len(word_lens) > 1:
             return self.__call__(word_lens[1:], new_gt_word_len, word_ft, word_idx)
         _, word_idx_order = torch.cat(word_idx).sort()
@@ -153,7 +154,8 @@ class GetFt():
             sparse_value += [1] * w
             n += w
         n_words_tensor = torch.sparse.FloatTensor(torch.tensor(sparse_idx).T,
-                                                  torch.FloatTensor(sparse_value),
+                                                  torch.FloatTensor(
+                                                      sparse_value),
                                                   torch.Size([len(n_words), sum(n_words)])).to(self.device)
         return word_code, n_words_tensor, names, label
 
@@ -172,7 +174,8 @@ class YieldData():
         return self.yield_data.__next__()
 
 
-config_name = sys.argv[1] if len(sys.argv) > 1 else "cdr_svtransformer_bpetoken_v2_512"
+config_name = sys.argv[1] if len(
+    sys.argv) > 1 else "cdr_svtransformer_bpetoken_v2_512"
 
 config_vars = import_module(f"config.{config_name}")
 config_var_names = [i for i in config_vars.__dir__() if not i.startswith("__")]
@@ -200,8 +203,10 @@ for name in VAR_NAMES:
 
 concept_id = {n.lower(): idx for n, idx in zip(train_data, count(0))}
 
-dev_label = list(chain(*[[i['concept'].lower() for i in v] for v in dev_data.values()]))
-test_label = list(chain(*[[i['concept'].lower() for i in v] for v in test_data.values()]))
+dev_label = list(chain(*[[i['concept'].lower() for i in v]
+                         for v in dev_data.values()]))
+test_label = list(chain(*[[i['concept'].lower()
+                           for i in v] for v in test_data.values()]))
 
 model_config['args']['vocab_size'] = len(char_map) + 1
 
@@ -240,7 +245,8 @@ model_cls = model_set[model_config['name']]
 if state == "new":
     model = model_cls(**model_config['args'])
     if WEIGHT_INIT:
-        weight_names = [i for i in model.state_dict().keys() if "weight" in i and "embedding" not in i]
+        weight_names = [i for i in model.state_dict(
+        ).keys() if "weight" in i and "embedding" not in i]
         for n in weight_names:
             w = reduce(getattr, n.split("."), model)
             if len(w.shape) > 1:
@@ -293,7 +299,8 @@ for _ in range(N_ROUNDS):
     cache = defaultdict(list)
     t = trange(STEP_PRE_ROUND, leave=False, ncols=120, ascii=True)
     for _ in t:
-        char_code, word_code, n_words, n_names = [i.squeeze(0) for i in yield_train_data()]
+        char_code, word_code, n_words, n_names = [
+            i.squeeze(0) for i in yield_train_data()]
         char_code, word_code = [i.to(DEVICE) for i in [char_code, word_code]]
         n_words, n_names = [list(i.numpy()) for i in [n_words, n_names]]
         train_rec_get_ft = TrainRecGetdFt(model, char_code, DEVICE)
@@ -339,38 +346,45 @@ for _ in range(N_ROUNDS):
         cold_start = time()
         model.eval()
         eval_get_ft = GetFt(model, word_map, EVAL_BATCH_SIZE, DEVICE)
-        train_code, train_n_words, train_names, train_label = eval_get_ft.get_data_fast(train_data)
+        train_code, train_n_words, train_names, train_label = eval_get_ft.get_data_fast(
+            train_data)
         train_ft = eval_get_ft.get_ft_fast(train_code, train_n_words)
         train_ft = train_ft.transpose(0, 1)
-        test_code, test_n_words, test_names, test_label = eval_get_ft.get_data_fast(test_data)
+        test_code, test_n_words, test_names, test_label = eval_get_ft.get_data_fast(
+            test_data)
         warm_start = time()
         test_ft = eval_get_ft.get_ft_fast(test_code, test_n_words)
         # test_pred = list((test_ft @ train_ft).argmax(-1).to("cpu").numpy())
         test_pred = (test_ft @ train_ft).argmax(-1).tolist()
         eval_end = time()
-        cold_start_time, warm_start_time = [eval_end - t for t in [cold_start, warm_start]]
+        cold_start_time, warm_start_time = [
+            eval_end - t for t in [cold_start, warm_start]]
         test_acc = np.mean([l == train_label[p]
                             for l, p in zip(test_label, test_pred)])
-        dev_code, dev_n_words, dev_names, dev_label = eval_get_ft.get_data_fast(dev_data)
+        dev_code, dev_n_words, dev_names, dev_label = eval_get_ft.get_data_fast(
+            dev_data)
         dev_ft = eval_get_ft.get_ft_fast(dev_code, dev_n_words)
         dev_pred = (dev_ft @ train_ft).argmax(-1).tolist()
         dev_acc = np.mean([l == train_label[p]
                            for l, p in zip(dev_label, dev_pred)])
-        print(f"dev acc: {dev_acc:.4f} test acc: {test_acc:.4f} cold_start: {cold_start_time:.4f} warm_start: {warm_start_time:.4f}")
+        print(
+            f"dev acc: {dev_acc:.4f} test acc: {test_acc:.4f} cold_start: {cold_start_time:.4f} warm_start: {warm_start_time:.4f}")
         with open(f"{work_dir}/eval.log", "a") as f:
             f.write(f"{step},{current_time},test_acc,{test_acc}\n")
             f.write(f"{step},{current_time},dev_acc,{dev_acc}\n")
             f.write(f"{step},{current_time},cold_start_time,{cold_start_time}\n")
             f.write(f"{step},{current_time},warm_start_time,{warm_start_time}\n")
         if test_acc > best_test_acc:
-            torch.save(model, f"{work_dir}/{optim_config['name']}_best_test_model.pkl")
+            torch.save(
+                model, f"{work_dir}/{optim_config['name']}_best_test_model.pkl")
             best_test_acc = test_acc
             content = "\n".join(["\t".join([n, l, train_label[p]])
                                  for p, n, l in zip(test_pred, test_names, test_label)])
             with open(f"{work_dir}/best_test_acc_pred.tsv", "w") as f:
                 f.write(content)
         if dev_acc > best_dev_acc:
-            torch.save(model, f"{work_dir}/{optim_config['name']}_best_dev_model.pkl")
+            torch.save(
+                model, f"{work_dir}/{optim_config['name']}_best_dev_model.pkl")
             best_dev_acc = dev_acc
             content = "\n".join(["\t".join([n, l, train_label[p]])
                                  for p, n, l in zip(test_pred, test_names, test_label)])
@@ -380,14 +394,18 @@ for _ in range(N_ROUNDS):
         torch.cuda.empty_cache()
         model.train()
     if SAVE_PRE_STEP and step % SAVE_PRE_STEP == 0:
-        torch.save(model, f"{work_dir}/{optim_config['name']}_model_checkpoint.pkl")
-        torch.save(optimizer, f"{work_dir}/{optim_config['name']}_checkpoint.pkl")
+        torch.save(
+            model, f"{work_dir}/{optim_config['name']}_model_checkpoint.pkl")
+        torch.save(
+            optimizer, f"{work_dir}/{optim_config['name']}_checkpoint.pkl")
 
 
 train_ft = eval_get_ft.get_ft_fast(train_code, train_n_words)
 train_ft = train_ft.transpose(0, 1)
 test_ft = eval_get_ft.get_ft_fast(test_code, test_n_words)
-warn_start_time = [test_warn_start(test_code, test_n_words) for i in range(100)]
+warn_start_time = [test_warn_start(
+    test_code, test_n_words) for i in range(100)]
 warn_start_time_mean = np.mean(warn_start_time)
-print(f"Average time of warn_start: {warn_start_time_mean:.3f}")
-print(f"Average time of one query: {(warn_start_time_mean * 1000 / test_ft.shape[0]):.3f} us")
+print(f"Average time of warn_start: {warn_start_time_mean:.3f} s")
+print(
+    f"Average time of one query: {(warn_start_time_mean * 1000 / test_ft.shape[0]):.3f} us")
